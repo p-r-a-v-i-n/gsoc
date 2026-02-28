@@ -8,7 +8,7 @@ This project idea was inspired by the official **Django Project GSoC 2026 ideas 
 
 My goal this summer is to implement `generate_series()` in `contrib.postgres` in a way that feels native to Django, ensuring it is robust, well-tested, and consistent with the ORM’s architecture.
 
-## 2. Technical Research and Implementation Path
+## 2. Technical Research (Background)
 
 I have researched the current state of set-returning functions in Django by examining recent discussions among core developers and studying the source code.
 
@@ -17,18 +17,42 @@ I have studied the work in **[PR #18412](https://github.com/django/django/pull/1
 
 My implementation will build directly on this foundation. I plan to use this flag to help the compiler distinguish between scalar expressions and expressions that should be treated as table sources in the `FROM` clause.
 
-### 2.2. Goal 1: A Generic `Relation` API
+### 2.2. A Generic `Relation` API
 Core contributors like [**Simon Charette**](https://github.com/charettes) and [**Adam Johnson**](https://github.com/adamchainz) have discussed the potential for a generic "Table-Valued Function" API on the [Django Developers forum](https://forum.djangoproject.com/t/proposal-add-generate-series-support-to-contrib-postgres/21947). 
 
 However, as **Lily Foote** noted in [new-features Issue #25](https://github.com/django/new-features/issues/25), the main challenge is managing aliases and composite values (functions returning multiple columns). 
 
-**My approach:**
-*   I will first aim to implement a generic `Relation` abstraction that allows an expression to be treated as a table source.
-*   This would ideally allow SRFs to be joined or aliased using a syntax similar to `FilteredRelation`.
-*   I will focus on implementing this through `LATERAL` joins where appropriate, ensuring the solution is compatible with existing QuerySet behaviors.
+## 3. My approach (Picture in my mind)
 
-### 2.3. Goal 2: `GenerateSeries` in `contrib.postgres` (The Core Deliverable)
-While a generic API is the long-term goal, the primary success of my project will be a working `GenerateSeries` implementation in `contrib.postgres`. 
+When I look at how Django works, I see that it keeps a very clear line between "tables" (which go in the `FROM` clause) and "functions" (which usually go in `SELECT`). To solve this, I need to build a "bridge" that allows a function to act like a table.
+
+### 3.1. Turning a Function into a Table Source
+From **[PR #18412](https://github.com/django/django/pull/18412)**, I found that we can use the `set_returning` flag on an expression. If this is `True`, the ORM should know that this is not just a value, but a source of data.
+
+My plan is to create a `Relation` object. Inside the ORM, this object will wrap the function. When the SQL is being built, the ORM will see this `Relation` and place it in the `FROM` clause. I've chosen to use `CROSS JOIN LATERAL` for this because it is very flexible, it allows the series to use values from the main table, like `generate_series(1, user.visit_count)`.
+
+### 3.2. How the ORM "Finds" the Data
+The biggest challenge is making sure the rest of the query can talk to this new "table". For example, if I name my series `v`, and I want to do `.filter(v__gt=5)`, Django needs to know where `v` is.
+
+I plan to solve this with a new expression called `RelationCol` (this name bcs there is already `Col` class this will give more info). This is my "pointer". 
+*   In the `SELECT` clause, it says: "Give me the value from the table named `v`".
+*   In the `WHERE` clause, it allows the ORM to resolve lookups (`__gt`, `__lt`) against that specific alias instead of looking for a field on the Model.
+
+By doing this, we don't have to change how filtering works in Django. We just give the ORM a new type of "Column" that knows it belongs to a function-relation.
+
+## 4. `GenerateSeries` in `contrib.postgres`
+
+Using this foundation, I will build the `GenerateSeries` expression. It should be very simple to use but powerful enough to handle different types.
+
+### Automatic Type Inference
+PostgreSQL is strict about types. If you start a series with an integer, it's an integer series. If you start with a timestamp, it's a timestamp series. 
+
+I want the Django API to be smart about this. By looking at the first argument to `GenerateSeries`, the ORM can automatically decide the `output_field`. This means the user doesn't have to manually tell Django what the type is most of the time.
+
+```python
+# The ORM will see the datetime and know this is a DateTimeField series
+GenerateSeries(start=datetime(2026, 1, 1), stop=datetime(2026, 1, 2), step=timedelta(hours=1))
+```
 
 #### Simple Usage Example
 The API is designed to be as simple as possible for basic needs. For example, generating a simple sequence of numbers:
@@ -56,48 +80,20 @@ series = GenerateSeries(
 )
 ```
 
-#### The Advanced Reporting Example
-A common real-world use case is ensuring every day in a reporting period is shown, even if no sales occurred:
+## 5. Testing Strategy and Edge Cases
+Because this touches the core SQL generation, testing is very important. I have identified several areas that need careful checks:
 
-```python
-from django.contrib.postgres.expressions import GenerateSeries
-from django.db.models import F, Sum, Q, DateTimeField
-from django.db.models.functions import Coalesce
-from datetime import datetime, timedelta
+*   **Inclusive vs Exclusive**: Making sure the `stop` value appears correctly.
+*   **Empty Results**: If the start is greater than the stop, the query should return zero rows without crashing.
+*   **Timezones**: Testing how series behave when they cross into Daylight Saving Time.
+*   **Integrity**: Ensuring that calling `.count()` or `.aggregate()` on a QuerySet with a series returns the correct mathematical results.
 
-# Sales report for the last week
-report = Sales.objects.alias(
-    day=Relation(
-        GenerateSeries(
-            start=datetime.now() - timedelta(days=6),
-            stop=datetime.now(),
-            step=timedelta(days=1),
-            output_field=DateTimeField(),
-        ),
-        on=Q(day=F('created_at__date'))
-    )
-).values("day").annotate(
-    total_sales=Coalesce(Sum("amount"), 0)
-).order_by("day")
-```
-
-## 3. Testing Strategy and Edge Cases
-
-A major part of this project will be ensuring the implementation is robust across all PostgreSQL-supported types and edge cases. Based on my research of existing solutions like `django-generate-series` and PostgreSQL documentation, I have identified the following testing priorities:
-
-### 3.1. Edge Case Validation
-*   **Boundary Inclusion**: Verifying that `stop` is inclusive when it aligns perfectly with the `step`, and exclusive otherwise.
-*   **Negative Steps**: Ensuring decreasing sequences (e.g., `start=10, stop=1, step=-1`) work correctly.
-*   **Zero/Invalid Steps**: Handling cases where `step` is zero or invalid to prevent infinite loops or database crashes.
-*   **Empty Ranges**: Ensuring the QuerySet is empty if `start > stop` (with positive step) or `start < stop` (with negative step).
-*   **Timezone & DST**: Carefully testing `DateTimeField` sequences across daylight saving time boundaries to ensure consistency with PostgreSQL's timezone logic.
-
-### 3.2. Integration and Performance
+### 5.2. Integration and Performance
 *   **Gap Filling**: Verifying that `LEFT JOIN` operations correctly preserve all generated rows when joined against sparse data.
 *   **Cartesian Products**: Testing implicit cross-joins when multiple `generate_series` calls are present in a single query.
 *   **Large Sequences**: Stress testing the memory and performance impact when generating millions of rows, ensuring the ORM's "lazy" evaluation remains efficient.
 
-## 4. Implementation Plan (350 Hours)
+## 6. Implementation Plan (350 Hours)
 
 *   **Bonding Period**: Finalize technical design for the `Relation` class with mentors; build a comprehensive "Edge Case Matrix" for testing.
 *   **Weeks 1-4**: ORM Compiler changes. Allow expressions with `set_returning=True` to be injected into the `FROM` clause.
@@ -105,7 +101,7 @@ A major part of this project will be ensuring the implementation is robust acros
 *   **Weeks 9-11**: Finalizing the `GenerateSeries` implementation in `contrib.postgres`, including deep support for intervals and field type safety.
 *   **Final Weeks**: Documentation, final polish, and responding to mentor feedback.
 
-## 5. About Me
+## 7. About Me
 
 My name is [Pravin](https://www.linkedin.com/in/pravin-206069235/), I am a software Engineer with **2.8 years of professional experience** using Python and Django. Django is the framework I have grown with, and it is the primary tool I use for my work. 
 
@@ -120,6 +116,4 @@ For the last year, I have been working **full-time on open source**, focusing on
 
 Currently, I am already spending **9 to 10 hours every day** on open source work.
 
-## 6. Conclusion
-
-This is really great opportunity for me to add value in Django.
+I am very excited about this project because it solves a real problem I have faced in my own work. I have already done the technical research to make sure this plan is realistic and follows Django's internal architecture.
