@@ -93,13 +93,8 @@ Because this touches the core SQL generation, testing is very important. I have 
 *   **Cartesian Products**: Testing implicit cross-joins when multiple `generate_series` calls are present in a single query.
 *   **Large Sequences**: Stress testing the memory and performance impact when generating millions of rows, ensuring the ORM's "lazy" evaluation remains efficient.
 
-## 6. Implementation Plan (350 Hours)
-
-*   **Bonding Period**: Finalize technical design for the `Relation` class with mentors; build a comprehensive "Edge Case Matrix" for testing.
-*   **Weeks 1-4**: ORM Compiler changes. Allow expressions with `set_returning=True` to be injected into the `FROM` clause.
-*   **Weeks 5-8**: Implementing the `Relation` API and testing against common reporting patterns.
-*   **Weeks 9-11**: Finalizing the `GenerateSeries` implementation in `contrib.postgres`, including deep support for intervals and field type safety.
-*   **Final Weeks**: Documentation, final polish, and responding to mentor feedback.
+## Other
+Currently, I am already spending **9 to 10 hours every day** on open source work. So I can give sufficient time to implement this.
 
 ## 7. About Me
 
@@ -114,6 +109,6 @@ For the last year, I have been working **full-time on open source**, focusing on
 *   [Bump checkout action to newer versions (PR #20430)](https://github.com/django/django/pull/20430)
 *   [fixes #36789 -- added missing .pdf version contribution_process.svg (PR #20387)](https://github.com/django/django/pull/20387)
 
-Currently, I am already spending **9 to 10 hours every day** on open source work.
+
 
 I am very excited about this project because it solves a real problem I have faced in my own work. I have already done the technical research to make sure this plan is realistic and follows Django's internal architecture.
