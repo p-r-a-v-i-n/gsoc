@@ -4,7 +4,7 @@
 
 PostgreSQL's set-returning functions (SRFs), such as `generate_series()`, are powerful tools for building complex reports, filling gaps in time-series data, or generating numeric sequences. 
 
- while many developers have used raw SQL or third-party packages to achieve this, there is a clear need for a native, first-class implementation within the ORM. Relying on "phantom models" or raw SQL fragments often leads to brittle code that breaks standard QuerySet features like `.count()` or manual aggregation.
+ While many developers have used raw SQL or third-party packages to achieve this, there is a clear need for a native, first-class implementation within the ORM. Relying on "phantom models" or raw SQL fragments often leads to brittle code that breaks standard QuerySet features like `.count()` or manual aggregation.
 
 My goal this summer is to implement `generate_series()` in `contrib.postgres` in a way that feels native to Django, ensuring it is robust, well-tested, and consistent with the ORM’s architecture.
 
@@ -29,54 +29,53 @@ When I look at how Django works, I see that it keeps a very clear line between "
 ### 3.1. Turning a Function into a Table Source
 From **[PR #18412](https://github.com/django/django/pull/18412)**, I found that we can use the `set_returning` flag on an expression. If this is `True`, the ORM should know that this is not just a value, but a source of data.
 
-My plan is to create a `Relation` object. Inside the ORM, this object will wrap the function. When the SQL is being built, the ORM will see this `Relation` and place it in the `FROM` clause. I've chosen to use `CROSS JOIN LATERAL` for this because it is very flexible, it allows the series to use values from the main table, like `generate_series(1, user.visit_count)`.
+First, I plan to create a `Relation` object. This object acts as the **source** of data in the `FROM` clause. When you pass a function like `generate_series()` to a `Relation`, the ORM knows to treat it like a table. 
+
+My plan is to use `CROSS JOIN LATERAL` for this. This is very flexible because it allows the series to depend on values from other tables already in the query.
 
 ### 3.2. How the ORM "Finds" the Data
-The biggest challenge is making sure the rest of the query can talk to this new "table". For example, if I name my series `v`, and I want to do `.filter(v__gt=5)`, Django needs to know where `v` is.
+Once the source is in the `FROM` clause, we need a way to **reference** its data in the `SELECT`, `WHERE`, or `ORDER BY` clauses. I plan to use a new expression called `RelationCol`. 
 
-I plan to solve this with a new expression called `RelationCol` (this name bcs there is already `Col` class this will give more info). This is my "pointer". 
-*   In the `SELECT` clause, it says: "Give me the value from the table named `v`".
-*   In the `WHERE` clause, it allows the ORM to resolve lookups (`__gt`, `__lt`) against that specific alias instead of looking for a field on the Model.
+Think of it this way:
+*   `Relation` is the **Table** (the source).
+*   `RelationCol` is the **Pointer** (the column reference).
 
-By doing this, we don't have to change how filtering works in Django. We just give the ORM a new type of "Column" that knows it belongs to a function-relation.
+By using `RelationCol`, we allow the ORM to resolve field lookups (like `__gt` or `__year`) against the series alias just like it does for a normal model field. This ensures that features like `.filter()` and `.order_by()` work perfectly without extra complex logic.
 
-## 4. `GenerateSeries` in `contrib.postgres`
+## 4. Simple Usage Examples
 
-Using this foundation, I will build the `GenerateSeries` expression. It should be very simple to use but powerful enough to handle different types.
+I want the API to be as "magical" as possible for most users, handling the `Relation` and `RelationCol` behind the scenes.
 
-### Automatic Type Inference
-PostgreSQL is strict about types. If you start a series with an integer, it's an integer series. If you start with a timestamp, it's a timestamp series. 
-
-I want the Django API to be smart about this. By looking at the first argument to `GenerateSeries`, the ORM can automatically decide the `output_field`. This means the user doesn't have to manually tell Django what the type is most of the time.
-
-```python
-# The ORM will see the datetime and know this is a DateTimeField series
-GenerateSeries(start=datetime(2026, 1, 1), stop=datetime(2026, 1, 2), step=timedelta(hours=1))
-```
-
-#### Simple Usage Example
-The API is designed to be as simple as possible for basic needs. For example, generating a simple sequence of numbers:
+### Transparent Usage (Standard)
+For most cases, a user just needs to call `.annotate()`. The ORM will see the `set_returning=True` flag on `GenerateSeries`, automatically create the `Relation` for the `FROM` clause, and give the user a `RelationCol` to work with.
 
 ```python
 from django.contrib.postgres.expressions import GenerateSeries
 
-# Generate numbers from 1 to 10
-series = GenerateSeries(start=1, stop=10)
-
-# In a more complex QuerySet context
-results = MyModel.objects.alias(val=Relation(series)).values("val")
+# The ORM handles the Relation vs RelationCol distinction for you
+qs = MyModel.objects.annotate(v=GenerateSeries(1, 10)).filter(v__gt=5)
 ```
 
-Or generating a simple date range:
+### Advanced Usage (Explicit)
+For more complex scenarios, a developer can use the `.relation()` API to explicitly define a source.
 
 ```python
-from datetime import date, timedelta
+from django.contrib.postgres.expressions import GenerateSeries
 
-# Monthly range for 2026
-series = GenerateSeries(
+# Define 'val' as a source in the FROM clause
+series = GenerateSeries(1, 10)
+qs = MyModel.objects.relation(val=series).values("val")
+```
+
+### Smart Type Inference
+The ORM will also be smart about types. By looking at the `start` value, it can decide if the result should be an `IntegerField`, a `DateField`, or a `DateTimeField`.
+
+```python
+# The ORM sees the date objects and automatically creates a DateField series
+GenerateSeries(
     start=date(2026, 1, 1),
     stop=date(2026, 12, 1),
-    step=timedelta(weeks=4) # or a custom interval string
+    step=timedelta(weeks=4)
 )
 ```
 
