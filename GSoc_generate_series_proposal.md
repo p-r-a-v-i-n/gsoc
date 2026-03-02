@@ -108,6 +108,28 @@ For the last year, I have been working **full-time on open source**, focusing on
 *   [Bump checkout action to newer versions (PR #20430)](https://github.com/django/django/pull/20430)
 *   [fixes #36789 -- added missing .pdf version contribution_process.svg (PR #20387)](https://github.com/django/django/pull/20387)
 
+Other than Django core I have contributed to some django community softwares too.
 
+**django-rusty-templates**: [PRs](https://github.com/LilyFirefly/django-rusty-templates/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+
+**wagtail**: [PRs](https://github.com/wagtail/wagtail/commits?author=p-r-a-v-i-n)
+
+**Djangorestframework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
+
+**django-tasks**: [PRs](https://github.com/RealOrangeOne/django-tasks/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+
+**django-debug-toolbar**: [PRs](https://github.com/django-commons/django-debug-toolbar/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n)
+
+**djangoproject.com**: [PRs](https://github.com/django/djangoproject.com/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
+
+**django-click**: [PRs](https://github.com/django-commons/django-click/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+
+**drf-excel**: [PRs](https://github.com/django-commons/drf-excel/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+
+**django-tinymce**: [PRs](https://github.com/jazzband/django-tinymce/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
+
+**django-extensions**: [PRs](https://github.com/django-extensions/django-extensions/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+
+**django-packages**: [PRs](https://github.com/djangopackages/djangopackages/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
 
 I am very excited about this project because it solves a real problem I have faced in my own work. I have already done the technical research to make sure this plan is realistic and follows Django's internal architecture.
