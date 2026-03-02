@@ -114,7 +114,7 @@ Other than Django core I have contributed to some django community softwares too
 
 **wagtail**: [PRs](https://github.com/wagtail/wagtail/commits?author=p-r-a-v-i-n)
 
-**Djangorestframework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
+**django-rest-framework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
 
 **django-tasks**: [PRs](https://github.com/RealOrangeOne/django-tasks/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
 
