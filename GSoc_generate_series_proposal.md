@@ -56,16 +56,38 @@ from django.contrib.postgres.expressions import GenerateSeries
 qs = MyModel.objects.annotate(v=GenerateSeries(1, 10)).filter(v__gt=5)
 ```
 
-### Advanced Usage (Explicit)
-For more complex scenarios, a developer can use the `.relation()` API to explicitly define a source.
+### Advanced Usage (Explicit `Relation`)
+For more complex queries, a developer can explicitly define a data source using a new `.relation()` QuerySet method. 
+
+While `.annotate()` is great for simply adding a series to existing model data, we need the explicit `Relation` version in a few important cases:
+
+1. **Gap Filling (Left Joins):** If you want to group sales by day over a month, but no sales happened on certain days, `.annotate()` on the `Sales` model will just skip those days. By putting the `GenerateSeries` Relation first in the `FROM` clause and using a `LEFT JOIN` to connect the `Sales` model to it, we can make sure every generated date shows up in the final result (with `0` or null for days with no sales).
+2. **Dealing with Multiple Columns:** If a Postgres function returns multiple columns at once, explicit relations let you name the whole result table. Then, you can use `RelationCol` to pick specific columns from that table safely.
+3. **Preventing Duplicated Rows:** When using more than one set-returning function in the same query, `.annotate()` might get tricky and accidentally multiply your rows. Explicit relations force you to clearly name your sources, giving you full control over how the database joins them.
 
 ```python
 from django.contrib.postgres.expressions import GenerateSeries
 
-# Define 'val' as a source in the FROM clause
+# Define 'val' as a source in the FROM clause explicitly
 series = GenerateSeries(1, 10)
 qs = MyModel.objects.relation(val=series).values("val")
 ```
+
+### Direct Function Querying (Standalone)
+Because `Relation` works so well as a table source, it gives us the ability to query a set-returning function directly, without needing a Django `Model` to start with.
+
+As a reviewer suggested, letting developers use `Relation` directly as a QuerySet source means they can evaluate a Postgres function completely on its own. 
+
+```python
+from django.contrib.postgres.expressions import GenerateSeries
+from django.db.models.query import QuerySet
+
+# No "MyModel" required! Query the function directly as the primary table
+qs = Relation(GenerateSeries(1, 10)).values()
+# Compiles simply to: SELECT * FROM generate_series(1, 10)
+```
+
+**Technical Implementation Details:** Right now, Django's `QuerySet` strictly requires a base `self.model` so it knows which database table to query (`self.model._meta.db_table`). To support `Relation(...).values()`, I will need to explore creating a "dummy" model in memory, or changing the SQL compiler so it doesn't crash when the base table is a `Relation` object instead of a real database table.
 
 ### Smart Type Inference
 The ORM will also be smart about types. By looking at the `start` value, it can decide if the result should be an `IntegerField`, a `DateField`, or a `DateTimeField`.
@@ -102,34 +124,25 @@ My name is [Pravin](https://www.linkedin.com/in/pravin-206069235/), I am a softw
 For the last year, I have been working **full-time on open source**, focusing on contributing back to the tools I rely on. I have been active in the Django community, learning from experienced contributors. I understand the importance of writing tests and following Django's coding standards.
 
 **My merged contributions to Django core include:**
-*   [Fixed #36929 -- Dropped support for GEOS 3.9. (PR #20720)](https://github.com/django/django/pull/20720)
-*   [Fixed #36769 -- Avoided visiting deeply nested nodes in XML deserializer. (PR #20377)](https://github.com/django/django/pull/20377)
-*   [Fixed #32568 -- Replaced obvious mark_safe usages with SafeString for performance. (PR #20287)](https://github.com/django/django/pull/20287)
-*   [Bump checkout action to newer versions (PR #20430)](https://github.com/django/django/pull/20430)
-*   [fixes #36789 -- added missing .pdf version contribution_process.svg (PR #20387)](https://github.com/django/django/pull/20387)
 
-Other than Django core I have contributed to some django community softwares too.
+1. Fixed #36929 - Dropped support for GEOS 3.9. ([PR #20720](https://github.com/django/django/pull/20720))
+1. Fixed #36769 - Avoided visiting deeply nested nodes in XML deserializer. ([PR #20377](https://github.com/django/django/pull/20377))
+1. Fixed #32568 - Replaced obvious `mark_safe` usages with `SafeString` for performance. ([PR #20287](https://github.com/django/django/pull/20287))
+1. Bump checkout action to newer versions. ([PR #20430](https://github.com/django/django/pull/20430))
+1. Fixed #36789 - Added missing PDF version of `contribution_process.svg`. ([PR #20387](https://github.com/django/django/pull/20387))
 
-**django-rusty-templates**: [PRs](https://github.com/LilyFirefly/django-rusty-templates/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+Other than Django core I have contributed to some Django community software too.
 
-**wagtail**: [PRs](https://github.com/wagtail/wagtail/commits?author=p-r-a-v-i-n)
-
-**django-rest-framework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
-
-**django-tasks**: [PRs](https://github.com/RealOrangeOne/django-tasks/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
-
-**django-debug-toolbar**: [PRs](https://github.com/django-commons/django-debug-toolbar/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n)
-
-**djangoproject.com**: [PRs](https://github.com/django/djangoproject.com/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
-
-**django-click**: [PRs](https://github.com/django-commons/django-click/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
-
-**drf-excel**: [PRs](https://github.com/django-commons/drf-excel/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
-
-**django-tinymce**: [PRs](https://github.com/jazzband/django-tinymce/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
-
-**django-extensions**: [PRs](https://github.com/django-extensions/django-extensions/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
-
-**django-packages**: [PRs](https://github.com/djangopackages/djangopackages/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
+*   **django-rusty-templates**: [PRs](https://github.com/LilyFirefly/django-rusty-templates/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+*   **wagtail**: [PRs](https://github.com/wagtail/wagtail/commits?author=p-r-a-v-i-n)
+*   **django-rest-framework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
+*   **django-tasks**: [PRs](https://github.com/RealOrangeOne/django-tasks/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+*   **django-debug-toolbar**: [PRs](https://github.com/django-commons/django-debug-toolbar/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n)
+*   **djangoproject.com**: [PRs](https://github.com/django/djangoproject.com/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
+*   **django-click**: [PRs](https://github.com/django-commons/django-click/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+*   **drf-excel**: [PRs](https://github.com/django-commons/drf-excel/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+*   **django-tinymce**: [PRs](https://github.com/jazzband/django-tinymce/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
+*   **django-extensions**: [PRs](https://github.com/django-extensions/django-extensions/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
+*   **django-packages**: [PRs](https://github.com/djangopackages/djangopackages/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
 
 I am very excited about this project because it solves a real problem I have faced in my own work. I have already done the technical research to make sure this plan is realistic and follows Django's internal architecture.
