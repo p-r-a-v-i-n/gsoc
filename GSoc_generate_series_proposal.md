@@ -67,10 +67,17 @@ While `.annotate()` is great for simply adding a series to existing model data, 
 
 ```python
 from django.contrib.postgres.expressions import GenerateSeries
+from django.db.models import Sum
 
-# Define 'val' as a source in the FROM clause explicitly
-series = GenerateSeries(1, 10)
-qs = MyModel.objects.relation(val=series).values("val")
+# Create the series we want to use as a source
+series = GenerateSeries(start=date(2026, 1, 1), stop=date(2026, 1, 31), step=timedelta(days=1))
+
+# By using .relation() instead of .annotate(), we explicitly place the series in the 
+# FROM clause under the clear alias "calendar". This gives us a safe, named 
+# virtual table to join our Sales model against without duplicating rows.
+daily_sales = Sales.objects.relation(
+    calendar=series
+).values("calendar").annotate(total_sales=Sum("amount"))
 ```
 
 ### Direct Function Querying (Standalone)
