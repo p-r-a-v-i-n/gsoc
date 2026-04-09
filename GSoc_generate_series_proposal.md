@@ -132,6 +132,7 @@ For the last year, I have been working **full-time on open source**, focusing on
 
 **My merged contributions to Django core include:**
 
+1. Refs #35440 - Optimized `parse_header_parameters` for common cases. ([PR #20532](https://github.com/django/django/pull/20532))
 1. Fixed #36929 - Dropped support for GEOS 3.9. ([PR #20720](https://github.com/django/django/pull/20720))
 1. Fixed #36769 - Avoided visiting deeply nested nodes in XML deserializer. ([PR #20377](https://github.com/django/django/pull/20377))
 1. Fixed #32568 - Replaced obvious `mark_safe` usages with `SafeString` for performance. ([PR #20287](https://github.com/django/django/pull/20287))
