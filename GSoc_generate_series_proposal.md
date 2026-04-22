@@ -83,7 +83,7 @@ daily_sales = Sales.objects.relation(
 ### Direct Function Querying (Standalone)
 Because `Relation` works so well as a table source, it gives us the ability to query a set-returning function directly, without needing a Django `Model` to start with.
 
-As a reviewer suggested, letting developers use `Relation` directly as a QuerySet source means they can evaluate a Postgres function completely on its own. 
+Letting developers use `Relation` directly as a QuerySet source means they can evaluate a Postgres function completely on its own. 
 
 ```python
 from django.contrib.postgres.expressions import GenerateSeries
@@ -126,7 +126,7 @@ Currently, I am already spending **9 to 10 hours every day** on open source work
 
 ## 7. About Me
 
-My name is [Pravin](https://www.linkedin.com/in/pravin-206069235/), I am a software Engineer with **2.8 years of professional experience** using Python and Django. Django is the framework I have grown with, and it is the primary tool I use for my work. 
+My name is [Pravin](), I am a software Engineer with **2.8 years of professional experience** using Python and Django. Django is the framework I have grown with, and it is the primary tool I use for my work. 
 
 For the last year, I have been working **full-time on open source**, focusing on contributing back to the tools I rely on. I have been active in the Django community, learning from experienced contributors. I understand the importance of writing tests and following Django's coding standards.
 
@@ -144,6 +144,7 @@ Other than Django core I have contributed to some Django community software too.
 *   **django-rusty-templates**: [PRs](https://github.com/LilyFirefly/django-rusty-templates/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
 *   **wagtail**: [PRs](https://github.com/wagtail/wagtail/commits?author=p-r-a-v-i-n)
 *   **django-rest-framework**: [PRs](https://github.com/encode/django-rest-framework/pulls?q=is%3Apr+author%3Ap-r-a-v-i-n+is%3Amerged)
+*   **channels**: [PRs](https://github.com/django/channels/commits?author=p-r-a-v-i-n)
 *   **django-tasks**: [PRs](https://github.com/RealOrangeOne/django-tasks/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n+)
 *   **django-debug-toolbar**: [PRs](https://github.com/django-commons/django-debug-toolbar/pulls?q=is%3Amerged+is%3Apr+author%3Ap-r-a-v-i-n)
 *   **djangoproject.com**: [PRs](https://github.com/django/djangoproject.com/pulls?q=is%3Apr+is%3Amerged+author%3Ap-r-a-v-i-n+)
